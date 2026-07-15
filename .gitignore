@@ -1,0 +1,4 @@
+# 抓取结果由 GitHub Actions 生成并强制提交, 本地不纳入版本库
+novels/
+__pycache__/
+*.pyc

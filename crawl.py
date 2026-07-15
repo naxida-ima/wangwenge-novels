@@ -50,10 +50,9 @@ def get_book_meta(bid):
     title = re.sub(r"\s+", " ", m.group(1)).strip()
     if not title:
         return None
-    cm = re.search(r'<div class="detail-pic[^"]*"><img src="([^"]+)"', html)
-    if not cm:
-        cm = re.search(r'detail-cover-blur"><img src="([^"]+)"', html)
-    cover = cm.group(1) if cm else ""
+    # 封面: 详情页里 attachment/images/ 下的图片(避开 banner/addons 图)
+    cm = re.search(r'https?://[^\s"\']*attachment/images/[^\s"\']+\.(?:jpg|jpeg|png|gif|webp)', html, re.I)
+    cover = cm.group(0) if cm else ""
     am = re.search(r'作者:\s*</div>\s*<div>(.*?)</div>', html, re.S)
     author = re.sub(r"<.*?>", "", am.group(1)).strip() if am else ""
     sm = re.search(r'状态:\s*([^<]+)', html)
