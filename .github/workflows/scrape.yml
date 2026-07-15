@@ -8,11 +8,15 @@ on:
       start:
         description: "扫描起始 id"
         required: false
-        default: "56000"
+        default: "1"
       end:
         description: "扫描结束 id"
         required: false
-        default: "96000"
+        default: "100000"
+      scan_only:
+        description: "仅扫描有效 id (输出 ids.json, 不抓取正文/封面)"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -28,7 +32,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run crawler
+      - name: Scan only (list valid ids -> ids.json)
+        if: ${{ github.event.inputs.scan_only == 'true' }}
+        run: python scan_full.py ${{ github.event.inputs.start || '1' }} ${{ github.event.inputs.end || '100000' }}
+
+      - name: Crawl novels
+        if: ${{ github.event.inputs.scan_only != 'true' }}
         env:
           START: ${{ github.event.inputs.start || '56000' }}
           END: ${{ github.event.inputs.end || '96000' }}
@@ -39,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f novels
+          git add -f novels ids.json
           if git diff --cached --quiet; then
             echo "no changes"
           else
