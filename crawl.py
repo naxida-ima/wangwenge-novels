@@ -3,17 +3,18 @@
 wangwenge.top 整站小说镜像爬虫
 - 穷举书籍 id（微擎 iweite_xiaoshuo 模块，自增主键，连续分布）
 - 抓取：目录(mulu) -> 逐章正文(read) -> #fuzhi 提取 <p>文本</p>
-- 下载封面图
-- 增量：已抓取且"已完结"的书跳过；其余只补未完成的章节
+- 仅抓正文文本(无封面图)；GitHub 仓库 + Backblaze B2 各存一份
+- 优先使用 ids.json(精确有效 id 列表)，避免重复扫描
+- 增量：已抓取且"已完结"的书跳过
 - 纯标准库，无需 pip 安装依赖
 用法:
   python crawl.py                 # 使用默认区间/环境变量
   START=56000 END=96000 python crawl.py
   python crawl.py 56000 96000    # 命令行参数优先
 输出目录(默认 novels):
-  novels/<book_id>/meta.json     # 标题/作者/封面/状态/章节数/字数
+  novels/<book_id>/meta.json     # 标题/作者/状态/章节数/字数
   novels/<book_id>/full.txt      # 全书纯文本(含章节标题)
-  novels/<book_id>/cover.jpg     # 封面
+  ids.json                       # 精确有效 id 列表(优先使用, 避免重复扫描)
 """
 import urllib.request
 import urllib.parse
@@ -122,23 +123,7 @@ def crawl_book(bid, out_root):
     meta_path = os.path.join(book_dir, "meta.json")
 
     skip = False
-    if os.path.exists(meta_path):
-        try:
-            old = json.load(open(meta_path, encoding="utf-8"))
-            if old.get("done") and old.get("status") == "已完结":
-                skip = True
-        except Exception:
-            pass
-    if skip:
-        return True
-
-    if meta.get("cover") and not os.path.exists(os.path.join(book_dir, "cover.jpg")):
-        download_cover(meta["cover"], os.path.join(book_dir, "cover.jpg"))
-
-    chapters = get_chapter_list(bid)
-    texts = {}
-
-    def worker(item):
+    ier(item):
         sid, ret = item
         return sid, get_chapter_text(bid, sid)
 
@@ -194,11 +179,23 @@ if __name__ == "__main__":
     OUT = os.environ.get("OUT_DIR", "novels")
     os.makedirs(OUT, exist_ok=True)
 
-    print(f"== 扫描有效 id 区间 [{START}, {END}] ==")
-    valid = scan_ids(START, END)
-    with open(os.path.join(OUT, "ids.json"), "w", encoding="utf-8") as f:
-        json.dump(valid, f)
-    print(f"== 发现有效书籍 {len(valid)} 本 ==")
+    # 优先使用已有的 ids.json(精确有效 id 列表)，避免重复扫描
+    ids_file = os.path.join(OUT, "ids.json")
+    if not os.path.exists(ids_file):
+        ids_file = "ids.json"
+    valid = None
+    if os.path.exists(ids_file):
+        try:
+            valid = json.load(open(ids_file, encoding="utf-8"))
+            print(f"== 使用 ids.json 中的 {len(valid)} 个有效 id ==")
+        except Exception:
+            valid = None
+    if valid is None:
+        print(f"== 扫描有效 id 区间 [{START}, {END}] ==")
+        valid = scan_ids(START, END)
+        with open(os.path.join(OUT, "ids.json"), "w", encoding="utf-8") as f:
+            json.dump(valid, f)
+        print(f"== 发现有效书籍 {len(valid)} 本 ==")
 
     ok = 0
     for bid in valid:

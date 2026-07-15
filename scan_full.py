@@ -7,6 +7,7 @@ import urllib.request
 import re
 import json
 import time
+import os
 import sys
 import concurrent.futures
 
@@ -41,6 +42,13 @@ if __name__ == "__main__":
             if done % 10000 == 0:
                 print(f"  进度 {done}/{total}  已发现有效 {len(valid)}", flush=True)
     valid.sort()
+    # 累积合并: 分段扫描时保留已有结果
+    if os.path.exists("ids.json"):
+        try:
+            old = json.load(open("ids.json", encoding="utf-8"))
+            valid = sorted(set(old) | set(valid))
+        except Exception:
+            pass
     with open("ids.json", "w", encoding="utf-8") as f:
         json.dump(valid, f)
     print(f"\n区间[{start},{end}] 耗时 {time.time()-t:.1f}s  有效书总数={len(valid)}")
