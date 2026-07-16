@@ -39,10 +39,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/naxida-ima/wangwenge-novels.git
-          git add -f novels_*.zip wip.zip progress.json ids.json 2>/dev/null || true
+          git add -f wip.zip progress.json ids.json
+          shopt -s nullglob
+          for z in novels_*.zip; do git add -f "$z"; done
+          shopt -u nullglob
+          git diff --cached --stat
           if git diff --cached --quiet; then
-            echo "no changes"
+            echo "no changes to commit"
           else
             git commit -m "auto mirror $(date +%F)"
-            git push
+            for i in $(seq 1 6); do git push origin HEAD:main && break || sleep 5; done
           fi
