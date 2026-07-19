@@ -1,4 +1,4 @@
-name: Mirror wangwenge novels (GitHub only, zipped)
+name: Mirror wangwenge novels (per-book txt + ID progress)
 
 on:
   schedule:
@@ -28,7 +28,7 @@ jobs:
         if: ${{ github.event.inputs.scan_only == 'true' }}
         run: python scan_full.py
 
-      - name: Crawl + zip (incremental, GitHub only)
+      - name: Crawl + zip (incremental, per-book, ID-based)
         if: ${{ github.event.inputs.scan_only != 'true' }}
         run: python mirror.py
 
@@ -39,10 +39,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/naxida-ima/wangwenge-novels.git
-          git add -f wip.zip progress.json ids.json
-          shopt -s nullglob
-          for z in novels_*.zip; do git add -f "$z"; done
-          shopt -u nullglob
+          git add -f progress.json ids.json
+          git add -f books/
+          git add -f novels/
           git diff --cached --stat
           if git diff --cached --quiet; then
             echo "no changes to commit"
