@@ -95,9 +95,9 @@ def crawl_book(bid, out_root):
     meta = get_book_meta(bid)
     if not meta:
         return False
-    book_dir = os.path.join(out_root, str(bid))
-    os.makedirs(book_dir, exist_ok=True)
-    meta_path = os.path.join(book_dir, "meta.json")
+    os.makedirs(out_root, exist_ok=True)
+    txt_path = os.path.join(out_root, f"{bid}.txt")
+    meta_path = os.path.join(out_root, f"{bid}.json")
 
     skip = False
     if os.path.exists(meta_path):
@@ -127,7 +127,7 @@ def crawl_book(bid, out_root):
     for sid, ret in sorted(chapters, key=lambda x: x[0]):
         if sid in texts:
             full.append(f"\n\n{ret}\n\n" + texts[sid])
-    with open(os.path.join(book_dir, "full.txt"), "w", encoding="utf-8") as f:
+    with open(txt_path, "w", encoding="utf-8") as f:
         f.write(meta["title"] + "\n作者：" + meta["author"] + "\n\n")
         f.write("".join(full))
 
