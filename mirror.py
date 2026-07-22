@@ -7,7 +7,9 @@
 依赖: crawl.crawl_book(bid, out_root) -> bool (写 out_root/{bid}.txt + {bid}.json)
 """
 
-import json, os, zipfile, time, glob, re, crawl
+import json, os, zipfile, time, glob, re, crawl, concurrent.futures
+
+BOOK_WORKERS = int(os.environ.get("BOOK_WORKERS", "4"))  # 书级并发数(环境变量可调, 默认4)
 
 IDS_FILE = "ids.json"
 PROG = "progress.json"
@@ -99,21 +101,28 @@ def main():
     idx = next_zip_index()
     idx = pack_books(idx)
 
-    # 阶段1: 续跑抓新书
+    # 阶段1: 续跑抓新书(书级并发 BOOK_WORKERS 本, 每本内部章级并发)
     start = time.time()
+    todo = [bid for bid in ids if bid not in done]
     newly = []
-    for bid in ids:
-        if bid in done:
-            continue
+    print(f"[info] 待抓 {len(todo)} 本, 书级并发={BOOK_WORKERS}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=BOOK_WORKERS) as ex:
+        futs = {ex.submit(crawl.crawl_book, b, BOOKS): b for b in todo}
         try:
-            if crawl.crawl_book(bid, BOOKS):
-                done.add(bid)
-                newly.append(bid)
-        except Exception as e:
-            print(f"[ERR] {bid}: {e}")
-        if time.time() - start > TIME_LIMIT:
-            print("time limit reached, stop")
-            break
+            for fut in concurrent.futures.as_completed(futs):
+                b = futs[fut]
+                try:
+                    if fut.result():
+                        done.add(b)
+                        newly.append(b)
+                except Exception as e:
+                    print(f"[ERR] {b}: {e}")
+                if time.time() - start > TIME_LIMIT:
+                    print("time limit reached, stop")
+                    break
+        finally:
+            for f in futs:
+                f.cancel()
 
     # 阶段2: 把本轮新抓的(正文+元数据)打包, 清空 books/
     idx = pack_books(idx)
